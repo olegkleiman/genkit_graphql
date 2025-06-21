@@ -1,0 +1,149 @@
+#directive @defer(
+    #     label: String
+    #     if: Boolean
+    # ) on FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+scalar Date
+
+# An object with a Globally Unique ID
+interface Node {
+    id: ID!
+}
+
+type Book implements Node {
+    id: ID!
+    title: String!
+    author: Author!
+}
+
+type Author implements Node {
+    id: ID!
+    name: String!
+    books: [Book]
+}
+
+
+
+"""An edge in a connection."""
+type UserParkingTicketEdge {
+    """A cursor for use in pagination"""
+    cursor: String!
+
+    """The ticket at the end of the edge"""
+    node: ParkingTicket
+}
+
+type Error {
+    message: String!
+}
+
+type PageInfo {
+    """When paginating forwards, the cursor to continue."""
+    endCursor: ID
+
+    """When paginating forwards, are there more items?"""
+    hasNextPage: Boolean!
+
+    """When paginating backwards, are there more items?"""
+    hasPreviousPage: Boolean!
+
+    """When paginating backwards, the cursor to continue."""
+    startCursor: ID        
+}
+
+type UserParkingTicketConnection {
+    edges: [UserParkingTicketEdge]
+    pageInfo: PageInfo!
+}
+
+union MeResult = User | Error
+
+type TaxAccount implements Node {
+    id: ID!
+    accountNumber: String!
+    street: String
+    payments: [TaxPayment]
+}
+
+type TaxPayment implements Node {
+    id: ID!
+    period: String
+    bill: String
+    amount: String
+}
+
+type ParkingTag implements Node {
+    id: ID!
+    tagNumber: String!
+    address: String
+    geographicArea: String
+    vehicleNumber: String!
+    expirationDate: Date
+}
+
+type ParkingTicket implements Node {
+    id: ID!
+    ticketNumber: String!
+    vehicleNumber: String!
+    amount: String!
+    issuedAt: String
+    issuedWhen: Date!
+    desc: String
+    images: [String!]
+    lastPaymnetDate: Date
+}
+
+type PublicEvent implements Node {
+    id: ID!
+    name: String!
+    description: String
+    date: Date
+    address: String
+    link: String
+    image: String
+}
+
+type PublicEventsEdge {
+    """A cursor for use in pagination"""
+    cursor: ID!
+    """The public event at the end of the edge"""
+    node: PublicEvent
+}
+
+type PublicEventConnection {
+    totalCount: Int
+    edges: [PublicEventsEdge]
+    pageInfo: PageInfo!
+}
+
+type User implements Node {
+    id: ID!
+
+    name: String
+    lastName: String
+    email: String
+    phoneNumber: String
+    userId: String!
+    address: String
+
+    interests: [String]
+    publicEventsConnection(filter: String, first: Int, after: ID, last: Int,  before: String): PublicEventConnection!
+
+    profilePicture: String
+
+    cityTaxes: [TaxAccount]
+    parkingTags : [ParkingTag]
+    parkingTickets(ticketNumber: String): [ParkingTicket]
+}
+
+type Query {
+    me: User # MeResult
+   
+    books: [Book!]
+    book(id: ID!): Book
+    authors: [Author!]
+}
+
+type Mutation {
+    setProfilePicture(base64: String) : Boolean
+}

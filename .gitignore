@@ -1,0 +1,4 @@
+/node_modules
+/.env
+.genkit/traces
+.genkit/servers
