@@ -1,8 +1,7 @@
 import { genkit } from 'genkit';
-import fs, { link } from 'fs';
+import fs from 'fs';
 import { ApolloClient, gql, HttpLink, InMemoryCache } from "@apollo/client/core/index.js"; // Import directly from core
 import { googleAI, gemini25FlashPreview0417} from '@genkit-ai/googleai';
-// import { startFlowServer, expressHandler } from '@genkit-ai/express';
 
 import express from 'express';
 import dotenv from 'dotenv';
