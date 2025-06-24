@@ -2,3 +2,4 @@
 /.env
 .genkit/traces
 .genkit/servers
+.DS_Store
