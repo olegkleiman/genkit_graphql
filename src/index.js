@@ -2,7 +2,7 @@ import { genkit } from 'genkit';
 import fs, { link } from 'fs';
 import { ApolloClient, gql, HttpLink, InMemoryCache } from "@apollo/client/core/index.js"; // Import directly from core
 import { googleAI, gemini25FlashPreview0417} from '@genkit-ai/googleai';
-import { startFlowServer, expressHandler } from '@genkit-ai/express';
+// import { startFlowServer, expressHandler } from '@genkit-ai/express';
 
 import express from 'express';
 import dotenv from 'dotenv';
@@ -13,12 +13,36 @@ import { jwtDecode } from "jwt-decode";
 const _googleAI = googleAI({ apiKey: process.env.GOOGLE_API_KEY });
 const ai = genkit({
     plugins: [_googleAI],
-    promptDir: './llm_prompts',
+    promptDir: './llm_prompts', // scan this directory and register any .prompt files found.
     model: gemini25FlashPreview0417,
     enableTracingAndMetrics: true 
 });
 
 const graphql_endpoint = process.env.GRAPHQL_URL;
+
+// const welcome_prompt = ai.definePrompt({
+//     name: "sample",
+//     model: "googleai/gemini-2.5-flash",
+//     input: {
+//       schema: z.object({
+//         language: z.string(),
+//       }),
+//     },
+//     prompt: "You are the world\'s most welcoming AI assistant. Greet the user in {{language}} and offer your assistance."
+// });
+
+// const graphQL_agent_prompt = ai.definePrompt({
+//     name: "graphql_agent",
+//     input: {
+//       schema: z.object({
+//         schemaSDL: z.string(),
+//       }),
+//     },
+//     prompt: `
+//     You are a helpful assistant that understands the following GraphQL schema and provides the information about the properties and connections defined in this schema.
+//     {{schemaSDL}}
+//     You must help the user generate GraphQL queries based on this schema. Answer only with the stringified query, omit other text.`
+// });
 
 export const executeGraphQL = ai.defineTool({
         name: "executedGraphQL",
@@ -50,37 +74,71 @@ export const executeGraphQL = ai.defineTool({
                 cache: new InMemoryCache(),
             });
 
-            if( input.query ) {
-                const gqlQuery = gql`
-                    ${input.query}
-                `;
-
+            if(input.query) {
+                const gqlQuery = gql`${input.query}`;
                 const graphql_result = await apolloClient.query({
                     query: gqlQuery,
                 });
-                const me = graphql_result.data.me;
-                const [_, connectionKey] = Object.keys(me); // __typeName and connectionName are returned
-                const connection = me[connectionKey];
-                const edges = connection?.edges || []
-
-                if( Array.isArray(edges) ) {
-                
-                    const nodes = edges.map( (edge) => {
-                        return {
-                            name: edge.node.name,
-                            description: edge.node.description,
-                            link: edge.node.link
-                        }
-                    })
-                    return nodes;
-                } else {
-                    return connection;
+                if (!graphql_result.data || !graphql_result.data.me) {
+                    console.log("Query did not return a 'me' object.");
+                    return [];
                 }
+
+                const me = graphql_result.data.me;
+
+                // Generalization
+
+                // Find the first key on the 'me' object that isn't '__typename'.
+                // This assumes the LLM generates a query with one main data field under 'me'.
+                const dataKey = Object.keys(me).find(key => key !== '__typename');
+                const resultData = me[dataKey];
+                let items = [];
+
+                // Check if the result is a GraphQL Connection (has 'edges').
+                if (resultData && Array.isArray(resultData.edges)) {
+                    items = resultData.edges.map(edge => edge.node).filter(node => node !== null); // Filter out null nodes
+                }
+                // Check if the result is a simple array.
+                else if (Array.isArray(resultData)) {
+                    items = resultData.filter(item => item !== null); // Filter out null items
+                }
+
+                // Now, map the extracted items to the desired output format.
+                // This is more flexible and won't crash if a field is missing.
+                return items.map(item => ({
+                    // The LLM should be prompted to return a 'name' or 'title' field.
+                    // We can look for common variations.
+                    name: String(item.name || item.title || item.ticketNumber || item.accountNumber || 'N/A'),
+                    description: item.description ? String(item.description) : null,
+                    link: item.link ? String(item.link) : null,
+                }));
+
+                // End of generalization
+
+                // const [_, connectionKey] = Object.keys(me); // __typeName and connectionName are returned
+                // const connection = me[connectionKey];
+                // const edges = connection?.edges || []
+
+                // if( Array.isArray(edges) ) {
+                
+                //     const nodes = edges.map( (edge) => {
+                //         return {
+                //             name: edge.node.name,
+                //             description: edge.node.description,
+                //             link: edge.node.link
+                //         }
+                //     })
+                //     return nodes;
+                // } else {
+                //     return [];
+                // }
             }
 
-            
+            return [];
+
         } catch(error) {
-            return `GraphQL query "${input}" execution failed. Error: ${error.message}`
+            console.error(`GraphQL query "${input.query}" execution failed. Error: ${error.message}`);
+            return [];
         }     
     }  
 );
@@ -92,7 +150,6 @@ export const toolsFlow = ai.defineFlow(
         // outputSchema: z.string(),
     },
     async (flowInput, {context}) => {
-        const prompt = ai.prompt('graphql_agent'); // '.prompt' extension will be added automatically
 
         const validationRequestBody = {
             clientId: process.env.CLIENT_ID
@@ -115,9 +172,40 @@ export const toolsFlow = ai.defineFlow(
 
         const schemaSDL = fs.readFileSync('./llm_prompts/schema.graphql', 'utf-8');
 
+        // Test
+
+        // console.log(response.text);
+        const graphQL_agent_prompt = ai.prompt('graphql_agent'); // '.prompt' extension will be added automatically
+        let response = await graphQL_agent_prompt(
+            {
+                schemaSDL: schemaSDL,
+                userInput: flowInput
+            }
+        )
+        // const graphqlPrompt = promptTemplate({
+        //     name: 'graphql_agent', // maps to ./llm_prompts/graphql_agent.prompt
+        //     inputSchema: z.object({
+        //         schemaSDL: z.string(),
+        //         userInput: z.string(),
+        //     }),
+        // });
+        // const prompt_with_vars = graphqlPrompt.withVariables({
+        //     schemaSDL: 'type Query { events: [Event] }',
+        //     userRequest: 'List all events',
+        // });
+
+        console.log(response.text);
+        
+        const rendered = await graphQL_agent_prompt.render(response);
+        console.log(rendered.text);
+        
+        // End test
+
+        
+
         const generateOptions = {
             system: `
-                You are a helpful assistant that understand the following GraphQL schema and provide the information about the public events defined in this schema.
+                You are a helpful assistant that understands the following GraphQL schema and provides the information about the properties and connections defined in this schema.
                 Schema:
                 ${schemaSDL}
 
@@ -126,32 +214,28 @@ export const toolsFlow = ai.defineFlow(
             prompt:  `Generate the GraphQL query based on the provided schema and the user input, and pass the generated query to the function 'executedGraphQL'
                 User's input: ${flowInput}
                 `,
-            // schema: z.string(), // or use structured if you're returning parsed data
+            // messages: [...prompt],
             tools: [executeGraphQL],
         }
 
         // generate a response
         const llmResponse =  await ai.generate(
-            generateOptions,
-            context
+            generateOptions
+            //context
         );
 
-        const toolRequests = llmResponse.toolRequests;
+        const toolRequests = llmResponse.toolRequests();
 
-        if( toolRequests.length == 0 ) {
-            console.log("No tool requests found in LLM esponse.");
-            return llmResponse;
+        if( !toolRequests || toolRequests.length === 0 ) {
+            console.log("No tool requests found in LLM response.");
+            return llmResponse.text();
+        } else {
+            const results = await Promise.all(
+                toolRequests.map(req => executeGraphQL(req.toolRequest.input))
+            );
+            return results.length > 0 ? results[0] : [];
         }
 
-        const gqlQuery = gql`
-            ${llmResponse.query}
-        `;
-
-        const graphql_result = await apolloClient.query({
-            query: gqlQuery,
-        });
-
-        return llmResponse;
     }
 );
 

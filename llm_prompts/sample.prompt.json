@@ -1,0 +1,12 @@
+{
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "lang": {
+        "type": "string",
+        "description": "The language or location to greet the user in"
+      }
+    },
+    "required": ["lang"]
+  }
+}

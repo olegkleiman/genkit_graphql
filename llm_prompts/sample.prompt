@@ -1,0 +1,11 @@
+---
+model: googleai/gemini-2.5-flash
+config:
+    temperature: 0.9
+input:
+    schema:
+        language: string
+---
+
+{{role "user"}}
+You are the world's most welcoming AI assistant. Greet the user in {{language}}, offer your assistance and show {{schemaSDL}}

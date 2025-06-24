@@ -1,0 +1,12 @@
+{
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "schemaSDL": {
+        "type": "string",
+        "description": "The GraphQL schema definition"
+      }
+    },
+    "required": ["schemaSDL"]
+  }
+}
