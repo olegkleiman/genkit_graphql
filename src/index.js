@@ -122,7 +122,11 @@ export const toolsFlow = ai.defineFlow(
     {
         name: "ToolsFlow",
         inputSchema: z.string(),
-        // outputSchema: z.string(),
+        outputSchema: z.array(z.object({ // Expected output from the GraphQL tool
+            name: z.string(),
+            description: z.string().nullable().optional(),
+            link: z.string().url().nullable().optional()
+        })),
     },
     async (flowInput, {context}) => {
 
@@ -188,19 +192,26 @@ const app = express();
 app.use(express.json());
 
 app.post('/toolsFlow', async(req, res) => {
-    const headers = req.headers;
-    const access_token = headers?.authorization?.split(' ')[1];
-    const decoded = jwtDecode(access_token);
-    const userId = decoded["signInNames.citizenId"];
-    const result = await toolsFlow(req.body.data, {
-                                context: { 
-                                    headers,
-                                    access_token,
-                                    userId
-                                } 
-                            }
-                    );
-    res.json(result);
+    try {
+        const headers = req.headers;
+        const access_token = headers?.authorization?.split(' ')[1];
+        const decoded = jwtDecode(access_token);
+        const userId = decoded["signInNames.citizenId"];
+        const result = await toolsFlow(req.body.data, {
+                                    context: { 
+                                        headers,
+                                        access_token,
+                                        userId
+                                    } 
+                                }
+                        );
+        res.json(result);
+    } catch(error) {
+        console.error('Error in /toolsFlow endpoint:', error);
+        res.status(500).json({ error: error.message || 'An unexpected error occurred.' });
+    }
+
+
 })
 
 app.listen(port, () => {
