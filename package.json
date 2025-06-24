@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "node ./src/index.js",
+    "dev": "NODE_ENV=development node ./src/index.js",
     "devui": "npx genkit start -- npm run dev"
   },
   "keywords": [],
@@ -17,6 +17,10 @@
     "@genkit-ai/googleai": "latest",
     "dotenv": "^16.5.0",
     "jwt-decode": "^4.0.0",
+    "pino": "^9.7.0",
     "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.0.0"
   }
 }

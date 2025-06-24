@@ -10,20 +10,6 @@ interface Node {
     id: ID!
 }
 
-type Book implements Node {
-    id: ID!
-    title: String!
-    author: Author!
-}
-
-type Author implements Node {
-    id: ID!
-    name: String!
-    books: [Book]
-}
-
-
-
 """An edge in a connection."""
 type UserParkingTicketEdge {
     """A cursor for use in pagination"""
@@ -138,10 +124,6 @@ type User implements Node {
 
 type Query {
     me: User
-   
-    books: [Book!]
-    book(id: ID!): Book
-    authors: [Author!]
 }
 
 type Mutation {
