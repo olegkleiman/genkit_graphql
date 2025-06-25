@@ -9,6 +9,7 @@ import express from 'express';
 
 import { z } from 'zod';
 import { jwtDecode } from "jwt-decode";
+import { buildSchema, parse, validate, GraphQLError } from 'graphql'; // Import GraphQL validation tools
 
 const _googleAI = googleAI({ apiKey: process.env.GOOGLE_API_KEY });
 const ai = genkit({
@@ -46,6 +47,15 @@ export const executeGraphQL = ai.defineTool({
 
         try {
             if(input.query) {
+
+                let parsedQuery;
+                try {
+                  parsedQuery = parse(input.query); 
+                } catch (syntaxError) {
+                    console.warn({ err: syntaxError, query: input.query }, 'LLM-generated GraphQL query has syntax errors.');
+                    throw new Error(`GraphQL query syntax error: ${syntaxError.message}`);
+                }
+
                 const gqlQuery = gql`${input.query}`;
                 const graphql_result = await apolloClient.query({
                     query: gqlQuery,
@@ -175,6 +185,7 @@ app.use(express.json());
 app.post('/toolsFlow', async(req, res) => {
     try {
         const headers = req.headers;
+
         const access_token = headers?.authorization?.split(' ')[1];
         const decoded = jwtDecode(access_token);
         const userId = decoded["signInNames.citizenId"];

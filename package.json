@@ -16,6 +16,7 @@
     "@genkit-ai/express": "latest",
     "@genkit-ai/googleai": "latest",
     "dotenv": "^16.5.0",
+    "graphql": "^16.11.0",
     "jwt-decode": "^4.0.0",
     "pino": "^9.7.0",
     "zod": "^3.25.67"
