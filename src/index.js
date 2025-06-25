@@ -43,30 +43,32 @@ export const executeGraphQL = ai.defineTool({
             })
         )
     },
-    async (input, { context }) => {
+    async ({query}, { context }) => {
 
         try {
-            if(input.query) {
+
+            if(query) {
 
                 let parsedQuery;
                 try {
-                  parsedQuery = parse(input.query); 
+                  parsedQuery = parse(query); 
                 } catch (syntaxError) {
-                    console.warn({ err: syntaxError, query: input.query }, 'LLM-generated GraphQL query has syntax errors.');
+                    console.warn({ err: syntaxError, query: query }, 'LLM-generated GraphQL query has syntax errors.');
                     throw new Error(`GraphQL query syntax error: ${syntaxError.message}`);
                 }
 
-                const gqlQuery = gql`${input.query}`;
+                const gqlQuery = gql`${query}`;
                 const graphql_result = await apolloClient.query({
                     query: gqlQuery,
                     context: {
                         headers: {
-                            authorization: `Bearer ${context.access_token}`
+                            authorization: `Bearer ${context.access_token}`,
+                            "x-user-location": context?.headers["x-user-location"]
                         }
                     }                    
                 });
                 if (!graphql_result.data || !graphql_result.data.me) {
-                    console.warn({ query: input.query }, "Query did not return a 'me' object.");
+                    console.warn({ query: query }, "Query did not return a 'me' object.");
                     return [];
                 }
 
